@@ -52,8 +52,8 @@ export const verifyWallet = async (req, res) => {
         if (Date.now() - userAccount.nonce_updated_at > 5 * 60 * 1000) return respondError(res, new Error('Nonce expired'));
 
         await Users.findOneAndUpdate({ wallet_address: walletAddress }, { nonce: null, nonce_updated_at: null });
-        const token = await generateJWT({ walletAddress, user_id: userAccount._id });
-        return res.status(200).json({ message: 'Wallet verified successfully', success: true, token, user: userAccount });
+        const token = await generateJWT({ walletAddress, user_id: userAccount._id.toString() });
+        return res.status(200).json({ message: 'Wallet verified successfully', success: true,data : {token, userAccount } });
     } catch (error) {
         return respondError(res, error, 500);
     }
@@ -76,13 +76,14 @@ export const createCampaign = async (req, res) => {
             status,
         } = req.body;
 
+        console.log(req.user, "authenticated user");
         if (!campaignAddress || !title || !owner) return respondError(res, new Error('Missing required fields'));
 
         const campaignEndDate = deadline ? new Date(Number(deadline) * 1000).toISOString() : null;
 
         const createData = await Campaign.create({
-            owner,
-            user_id: null,
+            owner : req.user.walletAddress,
+            user_id: req.user.user_id,
             campaign_address: campaignAddress,
             title,
             description,
@@ -100,7 +101,20 @@ export const createCampaign = async (req, res) => {
 
         if (!createData) return respondError(res, new Error('Campaign creation failed'), 500);
 
-        return res.status(201).json({ message: 'Campaign created successfully', success: true, campaign: createData });
+        return res.status(201).json({ message: 'Campaign created successfully', success: true, data: createData });
+    } catch (error) {
+        return respondError(res, error, 500);
+    }
+};
+
+export const getCampaigns = async (req, res) => {
+    try {
+        const { campaignAddress } = req.body;
+        const query = {};
+        if (campaignAddress) query.campaign_address = campaignAddress;
+
+        const campaigns = await Campaign.find(query);
+        return res.status(200).json({ message: 'Campaigns fetched successfully', success: true, data :campaigns });
     } catch (error) {
         return respondError(res, error, 500);
     }
@@ -140,15 +154,15 @@ export const investCampaign = async (req, res) => {
     }
 };
 
-export const getCampaigns = async (req, res) => {
-    try {
-        const { campaignAddress } = req.query;
-        const query = {};
-        if (campaignAddress) query.campaign_address = campaignAddress;
+// export const getCampaigns = async (req, res) => {
+//     try {
+//         const { campaignAddress } = req.query;
+//         const query = {};
+//         if (campaignAddress) query.campaign_address = campaignAddress;
 
-        const campaigns = await Campaign.find(query);
-        return res.status(200).json({ message: 'Campaigns fetched successfully', success: true, campaigns });
-    } catch (error) {
-        return respondError(res, error, 500);
-    }
-};
+//         const campaigns = await Campaign.find(query);
+//         return res.status(200).json({ message: 'Campaigns fetched successfully', success: true, campaigns });
+//     } catch (error) {
+//         return respondError(res, error, 500);
+//     }
+// };

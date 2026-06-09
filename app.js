@@ -1,4 +1,4 @@
-import express from "express";
+import express,{Router} from "express";
 import "./config/envConfig.js";
 import cors from "cors";
 import router from "./router/router.js";
@@ -10,8 +10,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const routes = Router();
+routes.use('/',router);
+
 // Mount API router
-app.use('/api/v1', router);
+app.use('/api/v1', routes);
 
 // Health check
 app.get('/health', (_req, res) => {
