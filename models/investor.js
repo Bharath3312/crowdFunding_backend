@@ -4,8 +4,7 @@ const investor_schema = new Schema({
     campaign_id : {type : String , required : true},
     wallet_address : {type : String , required : true},
     amount : {type : Number , required : true},
-    invested_at : {type : Date , required : true, default : Date.now},
-    status : {type : String , required : true}
+    status : {type : Boolean , required : true}
 },{
     timestamps : true
 })

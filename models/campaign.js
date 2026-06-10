@@ -16,7 +16,7 @@ const campaign_schema = new Schema({
     campaign_end_date : {type : Date , required : true},
     total_funded : {type : Number , required : true,default : 0},
     total_investors : {type : Number , required : true,default : 0},
-    status : {type : String , required : true,},
+    status : {type : Number , required : true,},
 },{
     timestamps : true
 })

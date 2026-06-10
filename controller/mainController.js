@@ -27,7 +27,7 @@ export const getNonce = async (req, res) => {
         }
 
         return res.status(200).json({
-            nonce: `Sign this message to login: ${signNonce}`,
+            data: `Sign this message to login: ${signNonce}`,
             message: 'Nonce generated successfully',
             success: true,
         });
@@ -107,7 +107,7 @@ export const createCampaign = async (req, res) => {
     }
 };
 
-export const getCampaigns = async (req, res) => {
+export const getAllCampaigns = async (req, res) => {
     try {
         const { campaignAddress } = req.body;
         const query = {};
@@ -119,7 +119,17 @@ export const getCampaigns = async (req, res) => {
         return respondError(res, error, 500);
     }
 };
-
+export const getCampaignById = async (req, res) => {
+    try{
+        const { campaignAddr } = req.params;
+        if(!campaignAddr) return respondError(res, new Error('Campaign Address required'));
+        const campaign = await Campaign.findOne({ campaign_address: new RegExp(`^${campaignAddr}$`, 'i') });
+        if (!campaign) return respondError(res, new Error('Campaign not found'), 404);
+        return res.status(200).json({ message: 'Campaign fetched successfully', success: true, data: campaign });
+    } catch (error) {
+        return respondError(res, error, 500);
+    }
+}
 export const investCampaign = async (req, res) => {
     try {
         const { campaign_id, wallet, amount } = req.body;
@@ -134,17 +144,16 @@ export const investCampaign = async (req, res) => {
         if (amount < (campaign.min_amount || 0)) return respondError(res, new Error('Amount less than minimum'));
         if (campaign.max_amount && amount > campaign.max_amount) return respondError(res, new Error('Amount greater than maximum'));
 
-        const checkInvestor = await Investor.findOne({ campaign_id, wallet_address: wallet });
+        const checkInvestor = await Investor.findOne({ campaign_id, wallet_address: new RegExp(`^${wallet}$`, 'i') });
         if (checkInvestor) {
-            checkInvestor.amount = Number(checkInvestor.amount) + Number(amount);
-            checkInvestor.invested_at = Date.now();
+            checkInvestor.amount +=  Number(amount);
             await checkInvestor.save();
-            campaign.total_funded = Number(campaign.total_funded) + Number(amount);
+            campaign.total_funded += Number(amount);
             await campaign.save();
         } else {
-            await Investor.create({ campaign_id, wallet_address: wallet, amount, invested_at: Date.now(), status: true });
-            campaign.total_funded = Number(campaign.total_funded) + Number(amount);
-            campaign.total_investors = (campaign.total_investors || 0) + 1;
+            await Investor.create({ campaign_id, wallet_address: wallet, amount });
+            campaign.total_funded += Number(amount);
+            campaign.total_investors +=  1;
             await campaign.save();
         }
 
