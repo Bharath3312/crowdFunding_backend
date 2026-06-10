@@ -132,8 +132,8 @@ export const getCampaignById = async (req, res) => {
 }
 export const investCampaign = async (req, res) => {
     try {
-        const { campaign_id, wallet, amount } = req.body;
-        if (!campaign_id || !wallet || !amount) return respondError(res, new Error('Missing fields'));
+        const { campaign_id, walletAddress, amount } = req.body;
+        if (!campaign_id || !walletAddress || !amount) return respondError(res, new Error('Missing fields'));
 
         const campaign = await Campaign.findById(campaign_id);
         if (!campaign) return respondError(res, new Error('Campaign not found'), 404);
@@ -144,14 +144,14 @@ export const investCampaign = async (req, res) => {
         if (amount < (campaign.min_amount || 0)) return respondError(res, new Error('Amount less than minimum'));
         if (campaign.max_amount && amount > campaign.max_amount) return respondError(res, new Error('Amount greater than maximum'));
 
-        const checkInvestor = await Investor.findOne({ campaign_id, wallet_address: new RegExp(`^${wallet}$`, 'i') });
+        const checkInvestor = await Investor.findOne({ campaign_id, wallet_address: new RegExp(`^${walletAddress}$`, 'i') });
         if (checkInvestor) {
             checkInvestor.amount +=  Number(amount);
             await checkInvestor.save();
             campaign.total_funded += Number(amount);
             await campaign.save();
         } else {
-            await Investor.create({ campaign_id, wallet_address: wallet, amount });
+            await Investor.create({ campaign_id, wallet_address: walletAddress, amount });
             campaign.total_funded += Number(amount);
             campaign.total_investors +=  1;
             await campaign.save();
