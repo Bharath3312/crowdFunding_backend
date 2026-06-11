@@ -18,8 +18,16 @@ const campaign_schema = new Schema({
     total_investors : {type : Number , required : true,default : 0},
     status : {type : Number , required : true,},
 },{
-    timestamps : true
+    timestamps : true,
+    toJSON : { virtuals : true},
+    toObject : { virtuals : true}
 })
+
+campaign_schema.virtual('investors', {
+    ref: 'investor',
+    localField: '_id',
+    foreignField: 'campaign_id',
+});
 
 const Campaign = model("campaign",campaign_schema);
 

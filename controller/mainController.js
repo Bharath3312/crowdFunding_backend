@@ -123,7 +123,7 @@ export const getCampaignById = async (req, res) => {
     try{
         const { campaignAddr } = req.params;
         if(!campaignAddr) return respondError(res, new Error('Campaign Address required'));
-        const campaign = await Campaign.findOne({ campaign_address: new RegExp(`^${campaignAddr}$`, 'i') });
+        const campaign = await Campaign.findOne({ campaign_address: new RegExp(`^${campaignAddr}$`, 'i') }).populate('investors');
         if (!campaign) return respondError(res, new Error('Campaign not found'), 404);
         return res.status(200).json({ message: 'Campaign fetched successfully', success: true, data: campaign });
     } catch (error) {
