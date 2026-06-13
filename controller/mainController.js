@@ -73,6 +73,7 @@ export const createCampaign = async (req, res) => {
             category,
             deadline,
             fundingType,
+            graceDays,
             status,
         } = req.body;
 
@@ -80,6 +81,8 @@ export const createCampaign = async (req, res) => {
         if (!campaignAddress || !title || !owner) return respondError(res, new Error('Missing required fields'));
 
         const campaignEndDate = deadline ? new Date(Number(deadline) * 1000).toISOString() : null;
+        const campaignGraceDays = graceDays ? new Date(Number(graceDays) * 1000).toISOString() : null;
+        
 
         const createData = await Campaign.create({
             owner : req.user.walletAddress,
@@ -94,6 +97,7 @@ export const createCampaign = async (req, res) => {
             funding_type: fundingType,
             category,
             campaign_end_date: campaignEndDate,
+            graceDays :campaignGraceDays,
             total_funded: 0,
             total_investors: 0,
             status,
