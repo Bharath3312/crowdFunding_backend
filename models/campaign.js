@@ -13,13 +13,22 @@ const campaign_schema = new Schema({
     max_amount : {type : Number , required : true},
     funding_type : {type : Number , required : true},
     category : {type : String , required : true},
-    campaing_end_date : {type : Date , required : true},
+    graceDays :{type : Date ,required : true},
+    campaign_end_date : {type : Date , required : true},
     total_funded : {type : Number , required : true,default : 0},
     total_investors : {type : Number , required : true,default : 0},
-    status : {type : String , required : true,},
+    status : {type : Number , required : true,},
 },{
-    timestamps : true
+    timestamps : true,
+    toJSON : { virtuals : true},
+    toObject : { virtuals : true}
 })
+
+campaign_schema.virtual('investors', {
+    ref: 'investor',
+    localField: '_id',
+    foreignField: 'campaign_id',
+});
 
 const Campaign = model("campaign",campaign_schema);
 
