@@ -179,3 +179,22 @@ export const investCampaign = async (req, res) => {
 //         return respondError(res, error, 500);
 //     }
 // };
+
+export const updateCampaign = async(req,res)=>{
+    try {
+        let {status,campaignAddress} = req.body;
+        const updateCampaign  = await Campaign.findOneAndUpdate({campaign_address : new RegExp(`^${campaignAddress}$`, 'i') },{$set :{status : status}});
+        return res.status(200).json({ message: 'success', success: true, data : updateCampaign });
+    } catch (error) {
+        return respondError(res, error, 500);
+    }
+}
+
+
+export const voteCampaign = async(req,res)=>{
+    try {
+        
+    } catch (error) {
+        
+    }
+}
