@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
+import { Users } from "../models/index.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -45,8 +46,11 @@ export const validateJWT = async (req, res, next) => {
     const token = authHeader.split(" ")[1];
 
     const payload = await verifyJWT(token);
-
-    req.user = payload;
+    const userData = await Users.findOne({_id : payload.user_id}).lean();
+    
+    if(!userData) throw new Error();
+    req.user = {...userData,user_id : payload.user_id};
+    console.log(req.user,"userData");
 
     next();
   } catch (error) {
