@@ -1,6 +1,6 @@
 import {Router} from "express";
 import { validateJWT } from "../controller/authController.js";
-import { getNonce, verifyWallet,createCampaign,getAllCampaigns,getCampaignById,investCampaign, updateCampaign } from "../controller/mainController.js";
+import { getNonce, verifyWallet,createCampaign,getAllCampaigns,getCampaignById,investCampaign, updateCampaign, getMyCampaigns } from "../controller/mainController.js";
 const route = Router();
 
 
@@ -16,6 +16,8 @@ route.post('/create-campaign',createCampaign);
 route.post('/invest-campaign',investCampaign);
 route.post('/update-campaign',updateCampaign);
 // rotue.post('/vote-campaign')
+
+route.get('/my-campaigns',getMyCampaigns);
 
 
 

@@ -2,6 +2,7 @@ import { ethers } from 'ethers';
 import { Users, Campaign, Investor } from '../models/index.js';
 import Crypto from 'crypto';
 import { generateJWT } from './authController.js';
+import mongoose from 'mongoose';
 
 const respondError = (res, error, code = 400) =>
     res.status(code).json({ status: false, message: error?.message || 'Internal Server Error' });
@@ -85,8 +86,8 @@ export const createCampaign = async (req, res) => {
         
 
         const createData = await Campaign.create({
-            owner : req.user.walletAddress,
-            user_id: req.user.user_id,
+            owner : req.user.wallet_address,
+            user_id: req.user._id,
             campaign_address: campaignAddress,
             title,
             description,
@@ -193,8 +194,197 @@ export const updateCampaign = async(req,res)=>{
 
 export const voteCampaign = async(req,res)=>{
     try {
-        
+        const {} = req.body;
     } catch (error) {
         
     }
 }
+
+
+// export const getMyCampaigns = async(req,res)=>{
+//     try {
+//         const {user_id , walletAddress} = req.user;
+//         const {page,status} = req.query;
+//         // activeCount = 0,1 campaign.status
+//         // successCount = 2,4 campaign.status
+//         // failedCount = 3,5 campaign.status
+//         // totalCampaignCount = overall campaignscount current user
+//         // totalBackers = campaign.total_investors // only calculated in successful campaign backers 
+//         // totalRaised  = campaign.total_funded  // only calculated in successfull and active campains
+//         // campaignList = array of object current user campaigns
+//         const campaignData = await Campaign.aggregeate([
+
+//         ])
+//     } catch (error) {
+        
+//     }
+// }
+
+export const getMyCampaigns = async (req, res) => {
+  try {
+    const { user_id, walletAddress } = req.user;
+    const { page = 1, status } = req.query;
+    const limit = parseInt(process.env.LIMIT) || 10;
+    const skip = (parseInt(page) - 1) * limit;
+
+    // ─── Status Groups ───────────────────────────────
+    const activeStatuses    = [0, 1];
+    const successStatuses   = [2, 4];
+    const failedStatuses    = [3, 5];
+
+    console.log();
+    
+    // ─── Match filter for campaignList ───────────────
+    const listMatch = { user_id: user_id };
+    if (status !== undefined && status !== '') {
+      listMatch.status = parseInt(status);
+    }
+console.log(listMatch,"listmatch");
+
+    const campaignData = await Campaign.aggregate([
+
+      // ─── Stage 1: Match only current user campaigns ──
+      {
+        $match: { user_id: user_id }
+      },
+
+      // ─── Stage 2: All summary stats (full dataset) ───
+      {
+        $facet: {
+
+          // ── Summary Stats ─────────────────────────────
+          stats: [
+            {
+              $group: {
+                _id: null,
+
+                // total campaigns
+                totalCampaignCount: { $sum: 1 },
+
+                // active count (status 0 or 1)
+                activeCount: {
+                  $sum: {
+                    $cond: [{ $in: ['$status', activeStatuses] }, 1, 0]
+                  }
+                },
+
+                // success count (status 2 or 4)
+                successCount: {
+                  $sum: {
+                    $cond: [{ $in: ['$status', successStatuses] }, 1, 0]
+                  }
+                },
+
+                // failed count (status 3 or 5)
+                failedCount: {
+                  $sum: {
+                    $cond: [{ $in: ['$status', failedStatuses] }, 1, 0]
+                  }
+                },
+
+                // totalBackers — only from successful campaigns
+                totalBackers: {
+                  $sum: {
+                    $cond: [
+                      { $in: ['$status', successStatuses] },
+                      '$total_investors',
+                      0
+                    ]
+                  }
+                },
+
+                // totalRaised — from active + successful campaigns
+                totalRaised: {
+                  $sum: {
+                    $cond: [
+                      { $in: ['$status', [...activeStatuses, ...successStatuses]] },
+                      '$total_funded',
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+
+          // ── Campaign List (paginated + filterable) ────
+          campaignList: [
+            { $match: listMatch },
+            { $sort: { createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                _id:              1,
+                title:            1,
+                description:      1,
+                img_url:         1,
+                status:           1,
+                total_funded:     1,
+                max_amount :1,
+                funding_type :1,
+                category:         1,
+                total_investors:  1,
+                campaign_end_date:         1,
+                campaign_address: 1,
+                createdAt:        1,
+              }
+            }
+          ],
+
+          // ── Total count for pagination ─────────────────
+          totalCount: [
+            { $match: listMatch },
+            { $count: 'count' }
+          ]
+        }
+      },
+
+      // ─── Stage 3: Flatten the facet output ────────────
+      {
+        $project: {
+          stats:        { $arrayElemAt: ['$stats', 0] },
+          campaignList: 1,
+          totalCount:   { $arrayElemAt: ['$totalCount', 0] }
+        }
+      }
+    ]);
+
+    // ─── Extract results ─────────────────────────────────
+    const result     = campaignData[0];
+    const stats      = result?.stats || {};
+    const totalCount = result?.totalCount?.count || 0;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        // summary stats
+        activeCount:        stats.activeCount        || 0,
+        successCount:       stats.successCount       || 0,
+        failedCount:        stats.failedCount        || 0,
+        totalCampaignCount: stats.totalCampaignCount || 0,
+        totalBackers:       stats.totalBackers       || 0,
+        totalRaised:        stats.totalRaised        || 0,
+
+        // campaign list
+        campaignList: result?.campaignList || [],
+
+        // pagination meta
+        pagination: {
+          currentPage:  parseInt(page),
+          totalPages:   Math.ceil(totalCount / limit),
+          totalCount,
+          limit
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("getMyCampaigns error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error:   error.message
+    });
+  }
+};
