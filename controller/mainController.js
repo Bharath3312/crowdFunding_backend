@@ -236,8 +236,12 @@ export const getMyCampaigns = async (req, res) => {
     
     // ─── Match filter for campaignList ───────────────
     const listMatch = { user_id: user_id };
-    if (status !== undefined && status !== '') {
-      listMatch.status = parseInt(status);
+    if (status && typeof status === 'string' && status !='' ) {
+        let filterStatus= [];
+        if(status === "Active") filterStatus = [0,1];
+        if(status === "Successful") filterStatus = [2,4];
+        if(status === "Failed") filterStatus = [3,5];
+        if(filterStatus.length)listMatch.status =  {$in : filterStatus}
     }
 console.log(listMatch,"listmatch");
 
