@@ -50,7 +50,7 @@ export const validateJWT = async (req, res, next) => {
     
     if(!userData) throw new Error();
     req.user = {...userData,user_id : payload.user_id};
-    console.log(req.user,"userData");
+    // console.log(req.user,"userData");
 
     next();
   } catch (error) {
