@@ -6,17 +6,13 @@ const route = Router();
 
 route.get('/auth-wallet/get-nonce',getNonce);
 route.post('/auth-wallet/verify',verifyWallet);
-
-route.post('/get-campaign',getAllCampaigns)
-
+route.post('/get-Allcampaign',getAllCampaigns)
 route.get('/getCampaginByUser/:campaignAddr',getCampaignById);
 
 route.use(validateJWT);
 route.post('/create-campaign',createCampaign);
 route.post('/invest-campaign',investCampaign);
 route.post('/update-campaign',updateCampaign);
-// rotue.post('/vote-campaign')
-
 route.get('/my-campaigns',getMyCampaigns);
 
 

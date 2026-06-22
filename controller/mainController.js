@@ -115,7 +115,7 @@ export const createCampaign = async (req, res) => {
 export const getAllCampaigns = async (req, res) => {
     try {
         const { campaignAddress } = req.body;
-        const query = {};
+        const query = {status : 0};
         if (campaignAddress) query.campaign_address = campaignAddress;
 
         const campaigns = await Campaign.find(query);
@@ -137,8 +137,9 @@ export const getCampaignById = async (req, res) => {
 }
 export const investCampaign = async (req, res) => {
     try {
-        const { campaign_id, walletAddress, amount } = req.body;
-        if (!campaign_id || !walletAddress || !amount) return respondError(res, new Error('Missing fields'));
+        const {amount,campaign_id } = req.body;
+        const { user_id, wallet_address } = req.user;
+        if (!campaign_id || !wallet_address || !amount) return respondError(res, new Error('Missing fields'));
 
         const campaign = await Campaign.findById(campaign_id);
         if (!campaign) return respondError(res, new Error('Campaign not found'), 404);
@@ -149,14 +150,14 @@ export const investCampaign = async (req, res) => {
         if (amount < (campaign.min_amount || 0)) return respondError(res, new Error('Amount less than minimum'));
         if (campaign.max_amount && amount > campaign.max_amount) return respondError(res, new Error('Amount greater than maximum'));
 
-        const checkInvestor = await Investor.findOne({ campaign_id, wallet_address: new RegExp(`^${walletAddress}$`, 'i') });
+        const checkInvestor = await Investor.findOne({ campaign_id,user_id });
         if (checkInvestor) {
             checkInvestor.amount +=  Number(amount);
             await checkInvestor.save();
             campaign.total_funded += Number(amount);
             await campaign.save();
         } else {
-            await Investor.create({ campaign_id, wallet_address: walletAddress, amount });
+            await Investor.create({ campaign_id,user_id, wallet_address: wallet_address, amount });
             campaign.total_funded += Number(amount);
             campaign.total_investors +=  1;
             await campaign.save();
@@ -167,19 +168,6 @@ export const investCampaign = async (req, res) => {
         return respondError(res, error, 500);
     }
 };
-
-// export const getCampaigns = async (req, res) => {
-//     try {
-//         const { campaignAddress } = req.query;
-//         const query = {};
-//         if (campaignAddress) query.campaign_address = campaignAddress;
-
-//         const campaigns = await Campaign.find(query);
-//         return res.status(200).json({ message: 'Campaigns fetched successfully', success: true, campaigns });
-//     } catch (error) {
-//         return respondError(res, error, 500);
-//     }
-// };
 
 export const updateCampaign = async(req,res)=>{
     try {
@@ -200,31 +188,11 @@ export const voteCampaign = async(req,res)=>{
     }
 }
 
-
-// export const getMyCampaigns = async(req,res)=>{
-//     try {
-//         const {user_id , walletAddress} = req.user;
-//         const {page,status} = req.query;
-//         // activeCount = 0,1 campaign.status
-//         // successCount = 2,4 campaign.status
-//         // failedCount = 3,5 campaign.status
-//         // totalCampaignCount = overall campaignscount current user
-//         // totalBackers = campaign.total_investors // only calculated in successful campaign backers 
-//         // totalRaised  = campaign.total_funded  // only calculated in successfull and active campains
-//         // campaignList = array of object current user campaigns
-//         const campaignData = await Campaign.aggregeate([
-
-//         ])
-//     } catch (error) {
-        
-//     }
-// }
-
 export const getMyCampaigns = async (req, res) => {
   try {
     const { user_id, walletAddress } = req.user;
     const { page = 1, status } = req.query;
-    const limit = parseInt(process.env.LIMIT) || 10;
+    const limit = parseInt(process.env.LIMIT) || 5;
     const skip = (parseInt(page) - 1) * limit;
 
     // ─── Status Groups ───────────────────────────────
@@ -392,3 +360,47 @@ console.log(listMatch,"listmatch");
     });
   }
 };
+
+export const getMyContribution = async (req,res) =>{
+  try {
+    const { walletAddress,_id } = req.user;
+    const { page = 1, status } = req.query;
+    const limit = parseInt(process.env.LIMIT) || 5;
+    const skip = (parseInt(page) - 1) * limit;
+
+    // ─── Status Groups ───────────────────────────────
+    const activeStatuses    = [0, 1];
+    const successStatuses   = [2, 4];
+    const failedStatuses    = [3, 5];
+
+    const data = await Investor.aggregate([
+      {$match : {user_id : _id}},
+      
+      {
+        $lookup :{
+          from : 'campaigns',
+          foreignField : _id,
+          localField : campaign_id,
+          as : "campaigns"
+        }
+      },
+      {$unwind :{path :'campaigns' ,preserveNullAndEmptyArrays :true}},
+
+      {$facet :{
+          stats :{
+              $group :{
+                _id:null,
+                totalCampaignCount: { $sum: 1 },
+
+              }
+          },
+
+      }},
+      
+
+    ])
+
+  } catch (error) {
+    
+  }
+}
